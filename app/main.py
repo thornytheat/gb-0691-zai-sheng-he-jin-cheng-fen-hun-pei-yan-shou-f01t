@@ -4,6 +4,7 @@ from app.errors import DomainError
 from app.reader import decode
 from app.pipeline import calculate
 from app.store import save, latest, history, review, get_run
+from app.modules.m8_scheduling.service import hydrate
 from app.web import bp as web
 
 from app.modules.m1_receiving.handler import bp as bp1
@@ -13,6 +14,7 @@ from app.modules.m4_blend.handler import bp as bp4
 from app.modules.m5_uncertainty.handler import bp as bp5
 from app.modules.m6_acceptance.handler import bp as bp6
 from app.modules.m7_reblend.handler import bp as bp7
+from app.modules.m8_scheduling.handler import bp as bp8
 app=Flask(__name__)
 app.config['MAX_CONTENT_LENGTH']=5*1024*1024
 app.json.ensure_ascii=False
@@ -32,6 +34,7 @@ app.register_blueprint(bp4)
 app.register_blueprint(bp5)
 app.register_blueprint(bp6)
 app.register_blueprint(bp7)
+app.register_blueprint(bp8)
 @app.before_request
 def validate_request_object():
     if request.method!='POST': return None
@@ -55,9 +58,9 @@ def run():
         raw=request.files['file'].read();text=decode(raw)
     else:
         payload=request.get_json(silent=True) or {};text=payload.get('csv')
-    return jsonify(save(calculate(text)))
+    return jsonify(hydrate(save(calculate(text))))
 @app.route('/api/runs/<ident>')
-def run_detail(ident): return jsonify(get_run(ident))
+def run_detail(ident): return jsonify(hydrate(get_run(ident)))
 @app.route('/api/history')
 def runs(): return jsonify(history())
 @app.route('/api/review',methods=['POST'])
@@ -68,7 +71,7 @@ def decide():
     return jsonify(review(body.get('id'),version,body.get('decision')))
 @app.route('/api/evidence.csv')
 def evidence():
-    result=get_run(request.args['run_id']) if request.args.get('run_id') else (latest() or save(calculate()));out=io.StringIO(newline='')
+    result=hydrate(get_run(request.args['run_id']) if request.args.get('run_id') else (latest() or save(calculate())));out=io.StringIO(newline='')
     rows=[]
     for index,stage in result['stages'].items():
         rows.extend({'阶段':index,**r} for r in stage['rows'])

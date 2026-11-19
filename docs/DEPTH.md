@@ -15,6 +15,7 @@
 | M5 不确定区间 | 运行不确定区间并复核证据 | `POST /api/m5`；`/work/5` | `app/modules/m5_uncertainty/rules.py` | `tests/test_m5.py` |
 | M6 验收对照 | 运行验收对照并复核证据 | `POST /api/m6`；`/work/6` | `app/modules/m6_acceptance/rules.py` | `tests/test_m6.py` |
 | M7 复配批次 | 运行复配批次并复核证据 | `POST /api/m7`；`/work/7` | `app/modules/m7_reblend/rules.py` | `tests/test_m7.py` |
+| M8 连炉排产 | 查看可执行连炉方案并逐步确认、停等续跑 | `POST /api/m8`；`/api/m8/confirm`；`/api/m8/resume`；`/work/8` | `app/modules/m8_scheduling/rules.py` | `tests/test_m8.py`、`tests/test_m8_api.py` |
 
 ## 陷阱登记
 
@@ -28,6 +29,9 @@
 | TRAP-15 | 吨与千克 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m2_assay/rules.py` | `tests/test_m2.py::test_units` |
 | TRAP-19 | 批号元数据冲突优先 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m3_recipe/rules.py` | `tests/test_m3.py::test_conflicting_lot_mass` |
 | TRAP-25 | 配方版本锁定 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m3_recipe/rules.py` | `tests/test_m3.py::test_version_lock` |
+| TRAP-26 | 铜高残料污染低铜炉次 | 直接连浇导致整炉出炉后才判不合格 | 承接后越出牌号即强制清洗/停等，禁止放宽 | `app/modules/m8_scheduling/rules.py` | `tests/test_m8.py::test_high_copper_heel_forces_cleaning`、`tests/test_m8_api.py::test_cannot_carry_high_copper_heel_into_low_copper` |
+| TRAP-27 | 中断后重试重复累计残料 | 每次确认都再记一次残料 | 事件按幂等键去重，结果为对事件序列的纯折叠 | `app/modules/m8_scheduling/rules.py`、`app/store.py` | `tests/test_m8_api.py::test_retry_same_confirmation_is_idempotent` |
+| TRAP-28 | 停等后续跑打乱炉序 | 续跑时按文件顺序重排 | 续跑只解除停等，炉序与炉内残料保持 | `app/modules/m8_scheduling/rules.py` | `tests/test_m8_api.py::test_stop_and_resume_keeps_furnace_order` |
 
 ## 对账规则
 

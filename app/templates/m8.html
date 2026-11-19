@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block stage_visual %}
+{% if current.note %}<p class="alert">{{ current.note }}</p>{% else %}
+<p class="muted">残料系数 {{ current.residual_rate }} · 每炉出炉残料 = 入炉总量 × 系数；确认后按炉序折叠并保留依据。</p>
+{% endif %}
+{% for furnace, action in current.actions.items() %}
+<div class="furnace-action" data-furnace="{{ furnace }}">
+  <div class="furnace-action__head"><strong>{{ furnace }}</strong>
+    {% if action.kind == 'confirm' %}
+    <span>下一炉 {{ action['炉次'] }}（{{ action['牌号'] }}）· 建议 <b class="{{ 'sev--severe' if action['建议'] in ('清洗','停等') else 'sev--warn' if action['建议']=='连浇' else '' }}">{{ action['建议'] }}</b></span>
+    {% else %}<span>停等后续跑 {{ action['炉次'] }}</span>{% endif %}
+  </div>
+  {% if action.kind == 'confirm' %}
+    {% if action['承接残料_kg'] and action['承接残料_kg'] != '0.0000' %}<p class="muted">承接上炉残料 {{ action['承接残料_kg'] }} kg</p>{% endif %}
+    {% if action['清洗原因'] %}<p class="sev--severe">{{ action['清洗原因'] }}</p>{% endif %}
+    {% if action['停等原因'] %}<p class="sev--severe">{{ action['停等原因'] }}</p>{% endif %}
+    <div class="controls">
+      {% for choice in action['可选动作'] %}
+      <button data-schedule-confirm="{{ furnace }}" data-heat="{{ action.heat_key }}" data-action="{{ choice }}" class="{{ 'primary' if choice == action['建议'] }}">{{ choice }}</button>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="controls"><button data-schedule-resume="{{ furnace }}" data-heat="{{ action.heat_key }}">续跑</button></div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
+{% block extra %}
+<section class="panel span-all">
+  <div class="panel__head"><h2>连炉方案</h2><span>{{ current.rows|length }} 炉 · 按炉座与炉序</span></div>
+  <div class="scroll">
+    {% if current.rows %}
+    <table>
+      <thead><tr>
+        <th>炉座</th><th>炉序</th><th>炉次</th><th>牌号</th><th>上一炉</th>
+        <th>承接残料 kg</th><th>入炉残料 kg</th><th>清洗去除 kg</th><th>入炉总量 kg</th><th>停等前批料 kg</th><th>出炉残料 kg</th>
+        <th>Cu 批料%</th><th>Cu 承接后%</th><th>Cu 牌号%</th>
+        <th>Zn 批料%</th><th>Zn 承接后%</th><th>Zn 牌号%</th>
+        <th>未清洗 Cu%</th><th>清洗依据</th><th>计划判定</th><th>执行状态</th><th>停等依据</th><th>来源行</th>
+      </tr></thead>
+      <tbody>
+      {% for row in current.rows %}
+        {% set hot = row['执行状态'] in ('已停等','需复核') or row['计划判定'] in ('停等','清洗') %}
+        <tr class="{{ 'row--alert' if hot }}">
+          <td>{{ row['炉座'] }}</td><td>{{ row['炉序'] }}</td><td>{{ row['炉次'] }}</td><td>{{ row['牌号'] }}</td><td>{{ row['上一炉'] }}</td>
+          <td>{{ row['承接残料_kg']|display }}</td><td>{{ row['入炉残料_kg']|display }}</td><td>{{ row['清洗去除_kg']|display }}</td>
+          <td>{{ row['入炉总量_kg']|display }}</td><td>{{ row['停等前批料干重_kg']|display }}</td><td>{{ row['出炉残料_kg']|display }}</td>
+          <td>{{ row['Cu_批料_pct'] }}</td><td>{{ row['Cu_承接后_pct'] }}</td><td>{{ row['Cu_牌号_pct'] }}</td>
+          <td>{{ row['Zn_批料_pct'] }}</td><td>{{ row['Zn_承接后_pct'] }}</td><td>{{ row['Zn_牌号_pct'] }}</td>
+          <td>{{ row.get('Cu_未清洗_pct','—') }}</td>
+          <td class="cell-note">{{ row['清洗原因'] or '—' }}</td>
+          <td>{{ row['计划判定'] }}</td>
+          <td class="{{ 'sev--severe' if row['执行状态'] in ('已停等','需复核') else 'sev--warn' if row['执行状态'] in ('待确认','等待续跑') else '' }}">{{ row['执行状态'] }}</td>
+          <td class="cell-note">{{ row['停等原因'] or '—' }}</td>
+          <td class="cell-note">{{ row['依据'] }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty">输入需包含 furnace、seq、grade 三列；可在下方展开样例。</div>{% endif %}
+  </div>
+</section>
+<section class="panel span-all">
+  <div class="panel__head"><h2>确认轨迹</h2><span>重试同一确认不重复累计</span></div>
+  <div class="panel__body">
+    <div class="scroll">
+      <table><thead><tr><th>事件</th><th>炉座</th><th>炉次</th><th>动作/建议</th><th>时间</th></tr></thead>
+      <tbody>{% for e in current.events %}<tr><td>{{ e['事件'] }}</td><td>{{ e['炉座'] }}</td><td>{{ e['炉次'] }}</td><td>{{ e['动作'] or e['建议'] or '—' }}</td><td>{{ e['时间'] or '—' }}</td></tr>{% endfor %}</tbody></table>
+    </div>
+    <details><summary>载入连炉样例</summary>
+      <p class="muted">将下方文本粘贴到「编辑来料文件」后提交，即可体验含铜高残料、停等与续跑的排产。</p>
+      <textarea id="sequence-csv" aria-label="连炉样例">{{ sequence_sample }}</textarea>
+      <div class="controls"><button id="load-sequence">载入连炉样例</button></div>
+    </details>
+    <div id="schedule-feedback" role="status" class="alert"></div>
+  </div>
+</section>
+{% endblock %}

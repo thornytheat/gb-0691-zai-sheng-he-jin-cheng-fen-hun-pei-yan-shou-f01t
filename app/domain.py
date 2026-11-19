@@ -2,6 +2,14 @@ from decimal import Decimal
 from app.numeric import number, fmt
 from app.errors import DomainError
 TARGETS={'Cu':(Decimal('7.5'),Decimal('12.5')),'Zn':(Decimal('3'),Decimal('7'))}
+# 连炉排产的牌号目标区间（教学用，不外推为生产工艺）。
+GRADES={
+    'CU70':{'Cu':(Decimal('7.0'),Decimal('8.0')),'Zn':(Decimal('5.0'),Decimal('7.0'))},
+    'CU90':{'Cu':(Decimal('8.5'),Decimal('9.5')),'Zn':(Decimal('4.0'),Decimal('6.0'))},
+    'CU110':{'Cu':(Decimal('10.5'),Decimal('11.5')),'Zn':(Decimal('3.0'),Decimal('5.0'))},
+}
+# 出炉后炉内残料占出炉干重的比例；教学用固定值，现场可标定替换。
+RESIDUAL_RATE=Decimal('0.06')
 def mass_kg(value,unit):
     if unit not in ('kg','t'): raise DomainError('UNIT','重量单位无效')
     value=number(value)*(1000 if unit=='t' else 1)
